@@ -9,9 +9,9 @@
     <style>
         body {
             font-family: 'Tajawal', sans-serif;
-            background-color: #000;
+            background-color: #050510;
             overflow: hidden;
-            touch-action: manipulation; /* يمنع التكبير عند النقر المزدوج على الهاتف */
+            touch-action: manipulation;
         }
         
         #webcam {
@@ -33,42 +33,32 @@
         .bottom-left { bottom: 25%; left: 10%; border-width: 0 0 3px 3px; }
         .bottom-right { bottom: 25%; right: 10%; border-width: 0 3px 3px 0; }
 
-        .pulsate {
-            animation: pulse 2s infinite;
-        }
-
+        .pulsate { animation: pulse 2s infinite; }
         @keyframes pulse {
             0% { transform: scale(1); opacity: 0.6; }
             50% { transform: scale(1.05); opacity: 1; }
             100% { transform: scale(1); opacity: 0.6; }
         }
 
-        /* الوميض الأبيض عند التصوير */
-        #flash {
-            pointer-events: none;
-            transition: opacity 0.5s ease-out;
-        }
+        #flash { pointer-events: none; transition: opacity 0.5s ease-out; }
 
-        /* نقطة التسجيل الحمراء */
-        .rec-dot {
-            animation: blink 1s infinite;
-        }
+        .rec-dot { animation: blink 1s infinite; }
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
 
-        .typewriter-text {
-            border-left: 2px solid white;
-            white-space: nowrap;
-            overflow: hidden;
-            animation: typing 2s steps(40, end), blink-caret .75s step-end infinite;
+        .fade-text {
+            animation: textFadeInOut 4s forwards;
         }
-        
-        @keyframes typing { from { width: 0 } to { width: 100% } }
-        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: white; } }
+        @keyframes textFadeInOut {
+            0% { opacity: 0; transform: translateY(10px) scale(0.95); }
+            15% { opacity: 1; transform: translateY(0) scale(1); }
+            85% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-10px) scale(1.05); }
+        }
 
-        .fade-in {
+        .final-fade-in {
             animation: fadeIn 1s forwards;
         }
         @keyframes fadeIn {
@@ -79,8 +69,14 @@
 </head>
 <body class="relative w-screen h-screen text-white flex items-center justify-center">
 
+    <!-- رسالة الخطأ في حال عدم السماح بالكاميرا -->
+    <div id="error-msg" class="hidden absolute z-50 p-6 bg-red-600/90 rounded-2xl text-center shadow-xl mx-4">
+        <h2 class="text-2xl font-bold mb-2">عذراً!</h2>
+        <p>يرجى السماح بالوصول للكاميرا لكي يعمل التطبيق وتتمكني من رؤية السحر.</p>
+    </div>
+
     <!-- شاشة البداية -->
-    <div id="welcome-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#050510] text-white p-6 text-center">
+    <div id="welcome-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#050510] text-white p-6 text-center transition-opacity duration-1000">
         <div class="text-7xl mb-6 animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">🌕</div>
         <h1 class="text-3xl md:text-5xl font-bold mb-10 leading-tight">هيا لنصور القمر 🌙</h1>
         <button id="start-btn" class="px-12 py-4 bg-white text-black font-bold rounded-full text-xl hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.4)]">
@@ -91,12 +87,6 @@
         </div>
     </div>
 
-    <!-- رسالة الخطأ في حال عدم السماح بالكاميرا -->
-    <div id="error-msg" class="hidden absolute z-50 p-6 bg-red-600/90 rounded-2xl text-center shadow-xl mx-4">
-        <h2 class="text-2xl font-bold mb-2">عذراً!</h2>
-        <p>يرجى السماح بالوصول للكاميرا لكي يعمل التطبيق وتتمكني من رؤية السحر.</p>
-    </div>
-
     <!-- حاوية الكاميرا والواجهة -->
     <div id="camera-container" class="hidden relative w-full h-full flex-col items-center justify-center">
         <!-- الفيديو (بث الكاميرا) -->
@@ -105,7 +95,7 @@
         <!-- طبقة تغميق خفيفة جداً -->
         <div class="absolute inset-0 bg-black/10 pointer-events-none"></div>
 
-        <!-- واجهة الكاميرا (تختفي عند التصوير) -->
+        <!-- واجهة الكاميرا -->
         <div id="camera-ui" class="absolute inset-0 z-10">
             <!-- الشريط العلوي -->
             <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-start text-sm md:text-base font-medium drop-shadow-md">
@@ -129,14 +119,17 @@
             <div class="focus-bracket bottom-left pulsate"></div>
             <div class="focus-bracket bottom-right pulsate"></div>
 
-            <!-- نص إرشادي -->
-            <div class="absolute bottom-32 w-full text-center drop-shadow-lg">
-                <p class="text-white/80 text-sm md:text-base tracking-wide">وجهي الكاميرا لالتقاط صورة للقمر</p>
+            <!-- شاشة الغزل المباشر فوق الكاميرا -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+                <h2 id="live-ghazal-text" class="text-2xl md:text-3xl font-bold text-white text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-0"></h2>
             </div>
 
             <!-- زر الالتقاط -->
-            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-                <button id="capture-btn" class="w-20 h-20 rounded-full bg-white/30 border-4 border-white backdrop-blur-sm flex items-center justify-center transition-transform active:scale-90 hover:bg-white/50">
+            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
+                <p id="capture-hint" class="text-white/80 text-sm tracking-wide drop-shadow-lg opacity-0 transition-opacity duration-500">
+                    اضغطي على الزر لالتقاط الصورة
+                </p>
+                <button id="capture-btn" class="w-20 h-20 rounded-full bg-white/30 border-4 border-white backdrop-blur-sm flex items-center justify-center transition-transform active:scale-90 hover:bg-white/50 shadow-lg">
                     <div class="w-16 h-16 rounded-full bg-white"></div>
                 </button>
             </div>
@@ -150,19 +143,17 @@
         <!-- الشاشة البيضاء (الفلاش) -->
         <div id="flash" class="absolute inset-0 bg-white opacity-0 z-20"></div>
 
-        <!-- شاشة الرسائل الرومانسية (تظهر بعد التصوير) -->
-        <div id="result-overlay" class="hidden absolute inset-0 z-30 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-            
+        <!-- شاشة النتيجة النهائية (تظهر بعد التصوير) -->
+        <div id="result-overlay" class="hidden absolute inset-0 z-30 bg-black/70 backdrop-blur-md flex-col items-center justify-center p-6 text-center">
             <div id="message-container" class="min-h-[150px] flex items-center justify-center flex-col gap-4">
                 <div class="text-5xl mb-4 animate-bounce" id="moon-icon">🔭</div>
                 <h1 id="dynamic-text" class="text-2xl md:text-4xl font-bold text-white leading-relaxed max-w-lg"></h1>
             </div>
 
-            <button id="reset-btn" class="hidden mt-10 px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/50 rounded-full transition-all text-sm backdrop-blur-sm">
+            <button id="reset-btn" class="hidden mt-10 px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/50 rounded-full transition-all text-sm backdrop-blur-sm shadow-md">
                 التقاط صورة أخرى
             </button>
             
-            <!-- توقيع قيس في صفحة النتيجة أيضاً -->
             <div class="absolute bottom-4 right-4 text-xs text-white/50 font-medium">
                 من اعداد قيس جازي
             </div>
@@ -180,41 +171,88 @@
         const resetBtn = document.getElementById('reset-btn');
         const errorMsg = document.getElementById('error-msg');
         
-        // عناصر شاشة البداية
         const welcomeScreen = document.getElementById('welcome-screen');
         const startBtn = document.getElementById('start-btn');
         const cameraContainer = document.getElementById('camera-container');
+        const liveGhazalText = document.getElementById('live-ghazal-text');
+        const captureHint = document.getElementById('capture-hint');
 
-        // تشغيل الكاميرا الأمامية
+        let cameraStream = null;
+
+        // تشغيل الكاميرا الأمامية وطلب الإذن التلقائي
         async function initCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" }, // الكاميرا الأمامية
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" },
                     audio: false 
                 });
-                video.srcObject = stream;
+                video.srcObject = cameraStream;
             } catch (err) {
                 console.error("حدث خطأ في الوصول للكاميرا: ", err);
-                cameraUi.style.display = 'none';
                 errorMsg.classList.remove('hidden');
             }
         }
 
-        // إعداد رسائل التتابع
-        const messages = [
+        // طلب الإذن فور تحميل الصفحة
+        window.addEventListener('load', initCamera);
+
+        // غزل يظهر على الكاميرا مباشرة
+        const liveGhazalMessages = [
+            "يا أحلى من القمر نفسه... ✨",
+            "نور وجهك يا رندا غطّى على كل النجوم 💫",
+            "الكاميرا محتارة تصور مين فيكم... ❤️"
+        ];
+
+        function playLiveGhazal() {
+            let delayAccumulator = 0;
+            
+            liveGhazalMessages.forEach((msg, index) => {
+                setTimeout(() => {
+                    liveGhazalText.textContent = msg;
+                    liveGhazalText.classList.remove('fade-text');
+                    void liveGhazalText.offsetWidth; // إعادة تشغيل الأنيميشن
+                    liveGhazalText.classList.add('fade-text');
+                    
+                    // إظهار نص الإرشاد للتصوير بعد انتهاء الغزل
+                    if(index === liveGhazalMessages.length - 1) {
+                        setTimeout(() => {
+                            captureHint.style.opacity = '1';
+                        }, 3500);
+                    }
+                }, delayAccumulator);
+                delayAccumulator += 4000; // كل رسالة تظهر لمدة 4 ثوانٍ
+            });
+        }
+
+        // زر البداية (ذهاب)
+        startBtn.addEventListener('click', () => {
+            // تشغيل الفيديو بشكل صريح للتوافق مع هواتف أبل
+            video.play().catch(e => console.log(e));
+            
+            welcomeScreen.style.opacity = '0';
+            setTimeout(() => {
+                welcomeScreen.classList.add('hidden');
+                cameraContainer.classList.remove('hidden');
+                cameraContainer.classList.add('flex');
+                
+                // بدء الغزل المباشر
+                setTimeout(playLiveGhazal, 1000);
+            }, 500);
+        });
+
+        // رسائل النتيجة النهائية
+        const finalMessages = [
             { text: "تفعيل الرادار الفلكي...", icon: "📡", delay: 1000 },
-            { text: "جاري البحث عن القمر بالمنطقة...", icon: "🛰️", delay: 2500 },
-            { text: "تم تحديد الهدف بنجاح!", icon: "✨", delay: 2500 },
+            { text: "جاري البحث عن القمر بالمنطقة...", icon: "🛰️", delay: 2000 },
+            { text: "تم تحديد الهدف بنجاح!", icon: "✨", delay: 2000 },
             { text: "أردت تصوير القمر...", icon: "📸", delay: 2000 },
             { text: "فوجدتكِ أنتِ يا رندا 🌙❤️", icon: "🥰", delay: 2500 }
         ];
 
         // وظيفة التقاط الصورة
         captureBtn.addEventListener('click', () => {
-            // تأثير الفلاش
             flash.style.opacity = '1';
             
-            // إخفاء واجهة الكاميرا وتثبيت الصورة (إيقاف تشغيل الفيديو مؤقتاً)
             setTimeout(() => {
                 flash.style.opacity = '0';
                 cameraUi.classList.add('hidden');
@@ -222,28 +260,24 @@
                 resultOverlay.classList.remove('hidden');
                 resultOverlay.classList.add('flex');
                 
-                // بدء عرض الرسائل
-                playMessagesSequence();
+                playFinalMessagesSequence();
             }, 500);
         });
 
-        // تشغيل سلسلة الرسائل
-        function playMessagesSequence() {
+        function playFinalMessagesSequence() {
             let delayAccumulator = 0;
             
-            messages.forEach((msg, index) => {
+            finalMessages.forEach((msg, index) => {
                 setTimeout(() => {
-                    // تحديث النص والأيقونة مع إضافة تأثير الظهور
-                    dynamicText.classList.remove('fade-in');
-                    void dynamicText.offsetWidth; // Trigger reflow
+                    dynamicText.classList.remove('final-fade-in');
+                    void dynamicText.offsetWidth;
                     
                     moonIcon.textContent = msg.icon;
                     dynamicText.innerHTML = msg.text;
                     
-                    dynamicText.classList.add('fade-in');
+                    dynamicText.classList.add('final-fade-in');
 
-                    // إذا كانت الرسالة الأخيرة، أظهر زر الإعادة وخلي النص بلون مميز
-                    if (index === messages.length - 1) {
+                    if (index === finalMessages.length - 1) {
                         dynamicText.classList.add('text-yellow-300');
                         setTimeout(() => {
                             resetBtn.classList.remove('hidden');
@@ -262,15 +296,10 @@
             cameraUi.classList.remove('hidden');
             dynamicText.classList.remove('text-yellow-300');
             resetBtn.classList.add('hidden');
-            video.play(); // إعادة تشغيل الفيديو
-        });
-
-        // زر البداية (ذهاب)
-        startBtn.addEventListener('click', () => {
-            welcomeScreen.classList.add('hidden');
-            cameraContainer.classList.remove('hidden');
-            cameraContainer.classList.add('flex');
-            initCamera(); // طلب الإذن وتشغيل الكاميرا عند النقر
+            liveGhazalText.classList.remove('fade-text');
+            liveGhazalText.style.opacity = '0';
+            video.play(); 
+            setTimeout(playLiveGhazal, 500); // إعادة الغزل
         });
     </script>
 </body>
